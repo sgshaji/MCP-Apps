@@ -1,7 +1,7 @@
-# Three things nobody tells you about building MCP widgets for Microsoft 365
+# Building MCP Apps for Microsoft 365
 
 > **Fair Use Notice**
-> This article references publicly available technical specifications, documentation, and product names for informational and educational purposes. No substantial verbatim text has been reproduced from any source. All product names, trademarks, and registered trademarks — including Microsoft 365, Copilot, Adaptive Cards, M365 Agents Toolkit, FastMCP, OpenSky Network, and the Model Context Protocol — are the property of their respective owners. Citations for factual claims are listed at the end. The three technical findings are original observations from first-hand development experience.
+> This article references publicly available technical specifications, documentation, and product names for informational and educational purposes. No substantial verbatim text has been reproduced from any source. All product names, trademarks, and registered trademarks — including Microsoft 365, Copilot, Adaptive Cards, M365 Agents Toolkit, FastMCP, OpenSky Network, and the Model Context Protocol — are the property of their respective owners. Citations for factual claims are listed at the end. The technical findings described are original observations from first-hand development experience.
 
 ---
 
@@ -9,11 +9,11 @@ I spent a weekend building a flight tracker that renders an interactive HTML wid
 
 ✅ The tool works. The widget renders. You can click a flight row and see live aircraft altitude, speed, and heading — without leaving the chat window.
 
-Getting there involved three bugs that are not documented anywhere. That is what this article is about.
+Here is what I built, how MCP Apps works, how it compares to Adaptive Cards, and what it can unlock in production.
 
 ---
 
-## ✈️ What the sample app does
+## ✈️ Flight Tracker
 
 The **Flight Tracker** is an MCP server that connects to M365 Copilot as a Declarative Agent. Give it any aircraft's ICAO24 transponder code and it:
 
@@ -43,42 +43,33 @@ User types prompt
 tools/call  →  get_flights_by_aircraft(icao24, begin_date, end_date)
        │
 [server.py]  →  OpenSky OAuth2 token  →  GET /api/flights/aircraft
-       │         returns CallToolResult { content, structuredContent }
+               returns CallToolResult { content, structuredContent }
        │
 M365 fetches ui://widget/flights.html  →  renders in sandboxed iframe
-       │         injects window.openai.toolOutput = structuredContent
+               injects window.openai.toolOutput = structuredContent
        │
 Widget renders flight table
        │
   [User clicks a row]
        │
 window.openai.callTool("get_aircraft_state", { icao24 })
-       │         → GET /api/states/all
+               → GET /api/states/all
        │
 Live state appears inline in the expanded row
 ```
 
 ---
 
-## 🆕 Something genuinely new happened in January
-
-On **26 January 2026**, Anthropic and OpenAI jointly published a specification extension called **MCP Apps**.
-
-Two competitors. One spec. Co-authored together.
-
-The Model Context Protocol already gave AI assistants a standard way to call tools. MCP Apps extends it so tools can return **interactive HTML widgets** that render directly inside the host.
-
-> This is the first official extension to MCP since the protocol launched. Production-ready. Not a preview. And almost nobody is talking about it yet.
-
----
-
 ## 🔍 What Are MCP Apps?
 
-MCP Apps enables MCP servers to deliver interactive HTML UIs **directly inside AI chat hosts** — M365 Copilot, ChatGPT, or anything that implements the spec.
+On **26 January 2026**, Anthropic and OpenAI — two companies that are, in most respects, competitors — jointly published **MCP Apps**, the first official extension to the Model Context Protocol since it launched.
 
-**Before MCP Apps:** every host had incompatible UI mechanisms. ChatGPT did one thing, Teams did another, M365 did a third.
+MCP Apps enables MCP servers to deliver **interactive HTML UIs directly inside AI chat hosts** — M365 Copilot, ChatGPT, or anything that implements the spec.
 
+**Before MCP Apps:** every host had incompatible UI mechanisms — ChatGPT, Teams, M365 each did something different.
 **After MCP Apps:** write once, render anywhere.
+
+> Production-ready. Not a preview. And almost nobody is talking about it yet.
 
 ### How it works — three entities
 
@@ -127,87 +118,24 @@ If you have built on M365 or Teams, you have used Adaptive Cards. They work. But
 | **Portability** | Teams, Outlook, Copilot | Any MCP Apps compliant host |
 
 **The flight tracker example makes this concrete:**
-- With Adaptive Cards: click a row → send a new question → wait for model → receive new card → lose previous state
+- With Adaptive Cards: click a row → ask a follow-up question → wait for model → receive new card → lose previous state
 - With MCP Apps: click a row → one `callTool` call → live data appears inline. No second prompt. No model invocation.
 
 > 💡 **Rule of thumb** — Use Adaptive Cards when data is complete at render time. Use MCP Apps widgets when the UI needs to stay alive after the tool call returns.
 
 ---
 
-## ⚠️ The three things nobody tells you
+## 🛠️ Challenges and troubleshooting
 
-### Fix 1 — `_meta` goes on the tool *definition*, not the tool *result*
+Building this on early-stage tooling with sparse documentation involved real friction. The full challenges table — including all undocumented gotchas, error codes, root causes, and fixes — is documented in the repository README under [Critical Troubleshooting → Build and deployment challenges](https://github.com/your-org/flight-tracker-mcp#critical-troubleshooting).
 
-**What the spec says:** put the widget URI in `_meta.ui.resourceUri`.
-**What it doesn't say clearly:** *where* that `_meta` lives.
+The three issues that will silently prevent the widget from rendering in M365, and that took the longest to diagnose:
 
-❌ **Wrong** — in `CallToolResult` (M365 ignores it entirely here)
-✅ **Right** — in `tools/list`, on the tool definition
-
-By the time your tool runs, M365 has already decided whether to render a widget. That decision is made at **discovery time**, not execution time.
-
-```python
-# ✅ Correct — FastMCP decorator
-@mcp.tool(
-    meta={"ui": {"resourceUri": "ui://widget/flights.html"}}
-)
-async def get_flights_by_aircraft(...):
-    ...
-```
-
-> ⚠️ If you use a static `mcp-tools.json` manifest (required by M365 Agents Toolkit), you must also add `_meta` manually to that file **and** re-provision. Both places. Neither alone is sufficient.
-
----
-
-### Fix 2 — `mcp-tools.json` is a snapshot, not a live mirror
-
-M365 Agents Toolkit generates `mcp-tools.json` once by interrogating your server. That snapshot is deployed. **It does not update automatically.**
-
-**The trap:**
-1. ✅ Fix your server — `_meta` now in `tools/list`
-2. ✅ Confirm with MCP Inspector — looks correct
-3. ❌ Widget still doesn't render in M365
-4. 🔍 Because the *deployed manifest* has the old snapshot with no `_meta`
-
-> 🔁 **Rule:** Re-provision after every structural change to `mcp-tools.json`.
-
----
-
-### Fix 3 — `window.openai.toolOutput` isn't always what the spec implies
-
-The widget gets data via `window.openai.toolOutput`. The spec implies it contains a `structuredContent` field. In M365, it sometimes delivers `structuredContent` *unwrapped* — the data **is** `toolOutput`, not `toolOutput.structuredContent`.
-
-```javascript
-var out = window.openai.toolOutput;
-var data = (out && out.structuredContent !== undefined)
-  ? out.structuredContent : out;   // handle both formats
-render(data);
-```
-
-Without this: widget receives data, renders nothing, gives no error.
-
-> Also: `window.openai` is injected **after** your script runs. Poll for it — 30 × 100ms is enough.
-
----
-
-## 🛠️ Challenges building the sample app
-
-These are the real-world friction points. None are in the getting-started docs.
-
-| Challenge | What happened | Fix |
-|---|---|---|
-| **Widget invisible in M365** | `background: transparent` renders the iframe invisible | Set `--color-bg: #ffffff` (light) and `#1a1a1a` (dark) explicitly in CSS |
-| **"Loading flight data..." stuck** | `window.openai` injected after script runs | Poll 30 × 100ms until available |
-| **WAM Error 3399614466** | `devtunnel user login` fails on Windows via auth broker | Use `devtunnel user login -d` (device code flow) |
-| **Ephemeral tunnel URL breaks manifest** | Named tunnel shows ephemeral URL at startup | Use only the permanent hostname in `ai-plugin.json` |
-| **OpenSky 403 Forbidden** | Wrong token endpoint | Use Keycloak realm URL: `auth.opensky-network.org/auth/realms/opensky-network/...` |
-| **OpenSky 401 Unauthorised** | Tried HTTP Basic Auth | Use OAuth2 `grant_type=client_credentials` + Bearer token |
-| **`outputTemplate: ""` kills the widget** | Added to suppress model text; M365 abandons widget rendering entirely | Remove it; use `instruction.txt` instead |
-| **No console in M365 iframe** | Can't open DevTools inside the hosted widget | Test fully with `widget_test.html` locally before deploying to M365 |
-| **Widget state lost on chat re-open** | `ontoolresult` doesn't re-fire for historical messages | No clean solution yet — open issue in the ecosystem |
-| **Python/Node.js parity gap** | `@modelcontextprotocol/ext-apps` is TypeScript-only | Python uses FastMCP `meta=` parameter + `window.openai.*` bridge manually |
-
-> 💡 **Strong recommendation:** Build and test the widget entirely with the local `widget_test.html` harness first. Debugging inside the M365 iframe — with no accessible console and a 30-second redeploy cycle — is considerably less pleasant.
+| Issue | Root cause |
+|---|---|
+| Widget never appears | `_meta` placed on `CallToolResult` — M365 reads it from `tools/list` at discovery time, not from the call result |
+| Widget disappears after server fix | `mcp-tools.json` is a static snapshot; it had no `_meta` and was not re-provisioned after the server was corrected |
+| Widget receives data, renders nothing | M365 delivers `structuredContent` unwrapped; widget must handle both `toolOutput.structuredContent` and `toolOutput` directly |
 
 ---
 
@@ -239,15 +167,14 @@ MCP Apps is **six weeks old** as I write this (March 2026).
 - ✅ M365 Agents Toolkit supports the full widget lifecycle
 - ❌ Practical knowledge of what breaks and why isn't written down yet
 
-**The three fixes will save you the better part of a day.**
-**The challenges table will save you the rest of it.**
+That is the gap this article fills.
 
-The widget rendered. It was worth it.
+**The widget rendered. It was worth it.**
 
 ---
 
 *Built with: FastMCP · M365 Agents Toolkit · OpenSky Network API · Microsoft 365 Copilot*
-*Full guide, code, and diagnostic checklist → repository README*
+*Full guide, code, and diagnostic checklist → [repository README](https://github.com/your-org/flight-tracker-mcp)*
 
 ---
 

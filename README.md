@@ -552,6 +552,25 @@ Adding `"outputTemplate": ""` to `ai-plugin.json` causes M365 to abandon widget 
 
 ---
 
+### Build and deployment challenges
+
+Real-world friction points encountered during development. None are covered in the getting-started documentation.
+
+| Challenge | What happened | Fix |
+|---|---|---|
+| **Widget invisible in M365** | `background: transparent` renders the iframe invisible | Set `--color-bg: #ffffff` (light) and `#1a1a1a` (dark) explicitly in CSS |
+| **"Loading flight data..." stuck** | `window.openai` injected after script runs | Poll 30 × 100ms until available |
+| **WAM Error 3399614466** | `devtunnel user login` fails on Windows via auth broker | Use `devtunnel user login -d` (device code flow) |
+| **Ephemeral tunnel URL breaks manifest** | Named tunnel shows ephemeral URL at startup | Use only the permanent hostname in `ai-plugin.json` |
+| **OpenSky 403 Forbidden** | Wrong token endpoint | Use Keycloak realm URL: `auth.opensky-network.org/auth/realms/opensky-network/...` |
+| **OpenSky 401 Unauthorised** | Tried HTTP Basic Auth | Use OAuth2 `grant_type=client_credentials` + Bearer token |
+| **`outputTemplate: ""` kills the widget** | Added to suppress model text; M365 abandons widget rendering entirely | Remove it; use `instruction.txt` instead |
+| **No console in M365 iframe** | Can't open DevTools inside the hosted widget | Test fully with `widget_test.html` locally before deploying to M365 |
+| **Widget state lost on chat re-open** | `ontoolresult` doesn't re-fire for historical messages | No clean solution yet — open issue in the ecosystem |
+| **Python/Node.js parity gap** | `@modelcontextprotocol/ext-apps` is TypeScript-only | Python uses FastMCP `meta=` parameter + `window.openai.*` bridge manually |
+
+---
+
 ## Developer Community Challenges
 
 The MCP Apps ecosystem is active and maturing rapidly. The following challenges are commonly encountered:
