@@ -614,11 +614,3 @@ The MCP Apps ecosystem is active and maturing rapidly. The following challenges 
 | Dev Tunnels Docs | https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/ |
 | Widget Host URL Generator | https://aka.ms/mcpwidgeturlgenerator |
 
----
-
-> 📝 **Publishing note** — This article works well as two posts: **Part 1** covering App Functionality, MCP Apps concepts, and Key Scripts (the build); **Part 2** covering Set-up, Critical Troubleshooting, and Community Challenges (the deployment and lessons). Part 2 contains the more original material — the three critical fixes are not documented elsewhere.
-
----
-
-*"It's not that the technology doesn't work. It's that nobody told the manifest."*
-*— Vineet Kaul, after hour six of debugging `mcp-tools.json`*
