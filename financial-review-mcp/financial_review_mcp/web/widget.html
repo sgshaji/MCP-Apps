@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+  :root {
+    --bg:           #ffffff;
+    --surface:      #f7f7f7;
+    --text:         #111111;
+    --muted:        #767676;
+    --border:       #e0e0e0;
+    --hdr-bg:       #efefef;
+    --hover:        #e8f0fe;
+    --accent:       #0066cc;
+    --sub-bg:       #f0f0f0;
+    --tot-bg:       #e4e4e4;
+    --warn-bg:      #fff8e1;
+    --warn-bd:      #f59e0b;
+    --edit-bg:      #ebf4ff;
+    --edit-bd:      #0066cc;
+    --ok:           #16a34a;
+    --ok-h:         #15803d;
+    --no:           #dc2626;
+    --no-h:         #b91c1c;
+    --radius:       8px;
+    --xs:           4px;
+    --sm:           8px;
+    --md:           12px;
+    --lg:           16px;
+  }
+  [data-theme="dark"] {
+    --bg:           #1a1a1a;
+    --surface:      #202020;
+    --text:         #f0f0f0;
+    --muted:        #a0a0a0;
+    --border:       #333333;
+    --hdr-bg:       #2a2a2a;
+    --hover:        #1a2a3a;
+    --accent:       #4da3ff;
+    --sub-bg:       #252525;
+    --tot-bg:       #2d2d2d;
+    --warn-bg:      #2a2000;
+    --warn-bd:      #d97706;
+    --edit-bg:      #0f2033;
+    --edit-bd:      #4da3ff;
+    --ok:           #22c55e;
+    --ok-h:         #16a34a;
+    --no:           #ef4444;
+    --no-h:         #dc2626;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    padding: var(--md);
+  }
+
+  /* ── Review header ── */
+  .rev-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .rev-note  { font-size: 12px; color: var(--muted); margin-bottom: var(--md); }
+
+  /* ── Tabs ── */
+  .tabs      { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: var(--md); }
+  .tab       {
+    padding: 6px 14px; font-size: 12px; font-weight: 500;
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; cursor: pointer; color: var(--muted);
+    border-radius: var(--radius) var(--radius) 0 0; transition: color .15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.on    { color: var(--accent); border-bottom-color: var(--accent); background: var(--hover); }
+
+  /* ── Statement panels ── */
+  .panel     { display: block; }
+  .panel.off { display: none; }
+
+  /* ── Unit badge ── */
+  .unit-badge {
+    display: inline-block; font-size: 11px; color: var(--muted);
+    background: var(--hdr-bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px 6px; margin-bottom: var(--sm);
+  }
+
+  /* ── Table ── */
+  .tbl-wrap  { border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; max-height: 520px; }
+  table      { width: 100%; border-collapse: collapse; min-width: 500px; }
+  thead th   {
+    position: sticky; top: 0; z-index: 2;
+    background: var(--hdr-bg); color: var(--muted);
+    font-size: 11px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: .4px; padding: var(--sm) var(--md);
+    border-bottom: 2px solid var(--border); white-space: nowrap;
+  }
+  th.lbl     { text-align: left; min-width: 260px; }
+  th.val     { text-align: right; min-width: 110px; }
+
+  /* ── Row types ── */
+  .r-section_header td {
+    padding: 4px var(--md); background: var(--hdr-bg);
+    font-weight: 600; font-size: 12px; color: var(--text);
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  .r-line_item td  { padding: 3px var(--md); border-bottom: 1px solid var(--border); }
+  .r-subtotal td   {
+    padding: var(--sm) var(--md); background: var(--sub-bg);
+    font-weight: 600; border-top: 2px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  .r-total td      {
+    padding: var(--sm) var(--md); background: var(--tot-bg);
+    font-weight: 700; border-top: 3px double var(--border); border-bottom: 2px solid var(--border);
+  }
+  tr:last-child td { border-bottom: none; }
+
+  /* ── Warning rows (amber) ── */
+  .r-warn td { background: var(--warn-bg) !important; border-left: 3px solid var(--warn-bd); }
+
+  /* ── Edited rows (blue tint) ── */
+  .r-edited td { background: var(--edit-bg) !important; }
+
+  /* ── Cell types ── */
+  td.lbl  { text-align: left; }
+  td.val  { text-align: right; font-variant-numeric: tabular-nums; }
+  td.null { text-align: right; color: var(--muted); }
+  td.ro   { text-align: right; font-variant-numeric: tabular-nums; }
+  td.bld  { font-weight: 700; }
+
+  /* ── Editable inputs ── */
+  .inp {
+    width: 100%; background: transparent;
+    border: 1px solid transparent; border-radius: 4px;
+    padding: 2px 4px; text-align: right;
+    font-size: 13px; font-family: inherit; color: var(--text);
+    font-variant-numeric: tabular-nums;
+    transition: border-color .15s, background .15s;
+  }
+  .inp:hover         { border-color: var(--border); }
+  .inp:focus         { outline: none; border-color: var(--accent); background: var(--hover); }
+  .inp.mod           { border-color: var(--edit-bd) !important; background: var(--edit-bg) !important; font-weight: 600; }
+
+  /* ── Warning icon and legend ── */
+  .wi        { color: var(--warn-bd); font-size: 11px; }
+  .warn-leg  {
+    margin-top: var(--sm); padding: 6px var(--md);
+    background: var(--warn-bg); border: 1px solid var(--warn-bd);
+    border-radius: var(--radius); font-size: 11px; color: var(--muted);
+  }
+
+  /* ── Action bar ── */
+  .act-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: var(--lg); padding: var(--sm) var(--md);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .act-bar.off { display: none; }
+  .edit-ct     { font-size: 12px; color: var(--muted); }
+  .edit-ct.on  { color: var(--accent); font-weight: 600; }
+  .btn-row     { display: flex; gap: var(--sm); }
+
+  /* ── Reject panel ── */
+  .rej-panel     {
+    margin-top: var(--sm); padding: var(--md);
+    background: var(--surface); border: 1px solid var(--no); border-radius: var(--radius);
+  }
+  .rej-panel.off { display: none; }
+  .rej-lbl       { display: block; font-size: 12px; font-weight: 600; color: var(--no); margin-bottom: var(--xs); }
+  .rej-ta        {
+    width: 100%; min-height: 60px; padding: var(--sm);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: inherit; font-size: 13px;
+    background: var(--bg); color: var(--text); resize: vertical; margin-bottom: var(--sm);
+  }
+  .rej-ta:focus  { outline: none; border-color: var(--no); }
+  .rej-btns      { display: flex; gap: var(--sm); justify-content: flex-end; }
+
+  /* ── Submitted state ── */
+  .sub-bar { margin-top: var(--lg); padding: var(--sm) var(--md); border-radius: 6px; font-size: 13px; font-weight: 600; text-align: center; }
+  .sub-ok  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+  .sub-no  { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+  [data-theme="dark"] .sub-ok { background: #052e16; color: #4ade80; border-color: #166534; }
+  [data-theme="dark"] .sub-no { background: #2d0e0e; color: #f87171; border-color: #7f1d1d; }
+
+  /* ── Buttons ── */
+  .btn               { padding: 7px 18px; font-size: 13px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: background .15s, opacity .15s; }
+  .btn:disabled      { opacity: .5; cursor: not-allowed; }
+  .b-ok              { background: var(--ok); color: #fff; }
+  .b-ok:hover:not(:disabled)     { background: var(--ok-h); }
+  .b-no              { background: transparent; color: var(--no); border: 1.5px solid var(--no); }
+  .b-no:hover:not(:disabled)     { background: var(--no); color: #fff; }
+  .b-sec             { background: var(--hdr-bg); color: var(--text); border: 1px solid var(--border); }
+  .b-sec:hover       { background: var(--hover); }
+  .b-no-cf           { background: var(--no); color: #fff; }
+  .b-no-cf:hover:not(:disabled)  { background: var(--no-h); }
+
+  /* ── MCP footer ── */
+  .mcp-bar  { height: 3px; background: var(--accent); border-radius: var(--radius) var(--radius) 0 0; margin-top: var(--lg); }
+  .mcp-foot {
+    display: flex; justify-content: space-between;
+    padding: 4px var(--md); background: var(--hdr-bg);
+    border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    font-size: 10px; color: var(--muted);
+  }
+  .mcp-foot strong { color: var(--accent); }
+
+  .empty { padding: var(--lg); color: var(--muted); text-align: center; }
+  .spin  {
+    display: inline-block; width: 12px; height: 12px;
+    border: 2px solid currentColor; border-right-color: transparent;
+    border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="root"><div class="empty">Loading statements…</div></div>
+
+<script>
+  // ── State ────────────────────────────────────────────────────────────────────
+  var G = { stmts: [], title: 'Financial Statement Review', note: '', tab: 0, edits: {}, done: false };
+
+  // ── Theme ────────────────────────────────────────────────────────────────────
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme',
+      (typeof t === 'string' ? t : (t && t.colorScheme) || 'light') === 'dark' ? 'dark' : 'light');
+  }
+  if (window.openai && window.openai.theme) { applyTheme(window.openai.theme); }
+
+  // ── callTool abstraction ─────────────────────────────────────────────────────
+  var _calls = {}, _seq = 0;
+  function callTool(name, args) {
+    if (window.openai && window.openai.callTool) {
+      return window.openai.callTool(name, args).then(function(r) {
+        return (r && r.structuredContent !== undefined) ? r.structuredContent : r;
+      });
+    }
+    return new Promise(function(res, rej) {
+      var id = ++_seq;
+      _calls[id] = { res: res, rej: rej };
+      window.parent.postMessage({ jsonrpc: '2.0', id: id, method: 'ui/callTool', params: { name: name, args: args } }, '*');
+      setTimeout(function() { if (_calls[id]) { delete _calls[id]; rej(new Error('Timeout')); } }, 15000);
+    });
+  }
+
+  // ── notifyHeight ─────────────────────────────────────────────────────────────
+  function nh() {
+    var h = document.body.scrollHeight;
+    if (window.openai && window.openai.notifyIntrinsicHeight) { window.openai.notifyIntrinsicHeight({ height: h }); }
+    window.parent.postMessage({ method: 'ui/notifyIntrinsicHeight', params: { height: h } }, '*');
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  function init(d) {
+    G.title = d.review_title  || 'Financial Statement Review';
+    G.note  = d.instructions  || '';
+    G.stmts = d.statements    || [];
+    G.edits = {}; G.tab = 0; G.done = false;
+    buildUI();
+    nh();
+  }
+
+  // ── Build UI ─────────────────────────────────────────────────────────────────
+  function buildUI() {
+    var r = document.getElementById('root');
+    if (!G.stmts.length) { r.innerHTML = '<div class="empty">No statements to review.</div>'; return; }
+
+    var tabs = G.stmts.map(function(s, i) {
+      var n = (s.validation_warnings || []).length;
+      var badge = n ? ' <span style="color:var(--warn-bd);font-size:10px">⚠' + n + '</span>' : '';
+      return '<button class="tab' + (i === G.tab ? ' on' : '') + '" onclick="switchTab(' + i + ')">' +
+        esc(stmtLabel(s)) + badge + '</button>';
+    }).join('');
+
+    var panels = G.stmts.map(function(s, i) {
+      return '<div class="panel' + (i === G.tab ? '' : ' off') + '" id="pnl-' + i + '">' +
+        renderStmt(s, i) + '</div>';
+    }).join('');
+
+    r.innerHTML =
+      '<div class="rev-title">' + esc(G.title) + '</div>' +
+      (G.note ? '<div class="rev-note">' + esc(G.note) + '</div>' : '') +
+      '<div class="tabs">' + tabs + '</div>' +
+      panels +
+      '<div class="act-bar" id="act-bar">' +
+        '<div class="edit-ct" id="ect">No edits made</div>' +
+        '<div class="btn-row">' +
+          '<button class="btn b-no" id="b-rej" onclick="startReject()">Reject</button>' +
+          '<button class="btn b-ok"  id="b-ok"  onclick="doApprove()">Approve</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rej-panel off" id="rej-pnl">' +
+        '<label class="rej-lbl">Reason for rejection</label>' +
+        '<textarea class="rej-ta" id="rej-txt" placeholder="Describe why these statements are being rejected…"></textarea>' +
+        '<div class="rej-btns">' +
+          '<button class="btn b-sec"   onclick="cancelReject()">Cancel</button>' +
+          '<button class="btn b-no-cf" id="b-cf" onclick="confirmReject()">Confirm Rejection</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mcp-bar"></div>' +
+      '<div class="mcp-foot">' +
+        '<span><strong>⚡ MCP Widget</strong> · financial-review-mcp</span>' +
+        '<span>Human-in-the-Loop Review</span>' +
+      '</div>';
+  }
+
+  // ── Render a single statement ─────────────────────────────────────────────────
+  function renderStmt(s, sIdx) {
+    var cols     = s.columns  || [];
+    var rows     = s.rows     || [];
+    var unit     = (s.metadata && s.metadata.unit) || null;
+    var stmtType = s.statement_type || ('s' + sIdx);
+
+    // Build warning map: rowIndex → [{col, expected, actual, diff}]
+    var wm = {};
+    (s.validation_warnings || []).forEach(function(w) {
+      if (!wm[w.row]) wm[w.row] = [];
+      wm[w.row].push(w);
+    });
+
+    var hdrs = cols.map(function(c) { return '<th class="val">' + esc(c.label) + '</th>'; }).join('');
+    var trs  = rows.map(function(row, rIdx) { return renderRow(row, rIdx, cols, stmtType, sIdx, wm); }).join('');
+
+    var wc  = Object.keys(wm).length;
+    var leg = wc
+      ? '<div class="warn-leg"><span class="wi">⚠ </span>' + wc +
+        ' validation warning' + (wc > 1 ? 's' : '') +
+        ' — amber rows require attention. Hover a row for details.</div>'
+      : '';
+
+    return (unit ? '<div class="unit-badge">In ' + esc(unit) + '</div>' : '') +
+      '<div class="tbl-wrap"><table>' +
+        '<thead><tr><th class="lbl">Line Item</th>' + hdrs + '</tr></thead>' +
+        '<tbody>' + trs + '</tbody>' +
+      '</table></div>' + leg;
+  }
+
+  // ── Render a single row ───────────────────────────────────────────────────────
+  function renderRow(row, rIdx, cols, stmtType, sIdx, wm) {
+    var rt     = row.row_type || 'line_item';
+    var indent = (row.indent_level || 0) * 20 + 12;
+    var isHdr  = rt === 'section_header';
+    var isEdit = rt === 'line_item';
+    var hasW   = wm[rIdx] !== undefined;
+    var rc     = 'r-' + rt + (hasW ? ' r-warn' : '');
+
+    var tip = hasW ? wm[rIdx].map(function(w) {
+      return 'Col ' + (w.col || w.col_index || '?') + ': expected ' + fn(w.expected) +
+             ', actual ' + fn(w.actual) + ', diff ' + fn(w.diff);
+    }).join(' | ') : '';
+
+    // Section headers span all columns, no value cells
+    if (isHdr) {
+      return '<tr class="' + rc + '"' + (tip ? ' title="' + esc(tip) + '"' : '') + '>' +
+        '<td class="lbl" style="padding-left:' + indent + 'px" colspan="' + (cols.length + 1) + '">' +
+          esc(row.label) +
+        '</td></tr>';
+    }
+
+    var vv = (row.values || []).map(function(val, cIdx) {
+      if (val.is_null) { return '<td class="null">—</td>'; }
+      var num    = val.normalized;
+      var colLbl = cols[cIdx] ? cols[cIdx].label : ('Col ' + (cIdx + 1));
+      var key    = stmtType + '__' + row.canonical_key + '__' + rIdx + '__' + cIdx;
+
+      if (isEdit) {
+        return '<td class="val">' +
+          '<input class="inp" type="number" step="any"' +
+            ' id="i-'   + esc(key)             + '"' +
+            ' data-key="'   + esc(key)             + '"' +
+            ' data-orig="'  + num                   + '"' +
+            ' data-stmt="'  + esc(stmtType)         + '"' +
+            ' data-sidx="'  + sIdx                  + '"' +
+            ' data-ridx="'  + rIdx                  + '"' +
+            ' data-cidx="'  + cIdx                  + '"' +
+            ' data-lbl="'   + esc(row.label)        + '"' +
+            ' data-clbl="'  + esc(colLbl)           + '"' +
+            ' data-ckey="'  + esc(row.canonical_key)+ '"' +
+            ' value="'      + num                   + '"' +
+            ' onchange="onEdit(this)" oninput="onEdit(this)"' +
+          '/></td>';
+      }
+      var cls = 'ro' + (rt === 'total' ? ' bld' : '');
+      return '<td class="' + cls + '">' + fn(num) + '</td>';
+    }).join('');
+
+    return '<tr class="' + rc + '" id="rr-' + stmtType + '-' + rIdx + '"' +
+      (tip ? ' title="' + esc(tip) + '"' : '') + '>' +
+      '<td class="lbl" style="padding-left:' + indent + 'px">' +
+        (hasW ? '<span class="wi">⚠ </span>' : '') + esc(row.label) +
+      '</td>' + vv + '</tr>';
+  }
+
+  // ── Tab switching ─────────────────────────────────────────────────────────────
+  function switchTab(i) {
+    if (i === G.tab) return;
+    var p = document.getElementById('pnl-' + G.tab); if (p) p.classList.add('off');
+    G.tab = i;
+    var n = document.getElementById('pnl-' + i); if (n) n.classList.remove('off');
+    document.querySelectorAll('.tab').forEach(function(t, x) { t.classList.toggle('on', x === i); });
+    nh();
+  }
+
+  // ── Edit handling ─────────────────────────────────────────────────────────────
+  function onEdit(inp) {
+    var key  = inp.dataset.key;
+    var orig = parseFloat(inp.dataset.orig);
+    var cur  = parseFloat(inp.value);
+    if (isNaN(cur)) return;
+    var changed = Math.abs(cur - orig) > 1e-9;
+
+    if (changed) {
+      G.edits[key] = {
+        statement_type: inp.dataset.stmt,
+        canonical_key:  inp.dataset.ckey,
+        label:          inp.dataset.lbl,
+        col_label:      inp.dataset.clbl,
+        row_index:      parseInt(inp.dataset.ridx),
+        col_index:      parseInt(inp.dataset.cidx),
+        original:       orig,
+        edited:         cur,
+      };
+      inp.classList.add('mod');
+      var rr = document.getElementById('rr-' + inp.dataset.stmt + '-' + inp.dataset.ridx);
+      if (rr) rr.classList.add('r-edited');
+    } else {
+      delete G.edits[key];
+      inp.classList.remove('mod');
+      var rr2 = document.getElementById('rr-' + inp.dataset.stmt + '-' + inp.dataset.ridx);
+      if (rr2 && !rr2.querySelector('.mod')) rr2.classList.remove('r-edited');
+    }
+    updCt();
+  }
+
+  function updCt() {
+    var n  = Object.keys(G.edits).length;
+    var el = document.getElementById('ect'); if (!el) return;
+    el.textContent = n ? n + ' edit' + (n > 1 ? 's' : '') + ' pending' : 'No edits made';
+    el.className   = 'edit-ct' + (n ? ' on' : '');
+  }
+
+  // ── Approve ───────────────────────────────────────────────────────────────────
+  function doApprove() {
+    if (G.done) return;
+    G.done = true;
+    setBusy(true);
+    var edits = Object.values(G.edits);
+    callTool('submit_reviewed_statement', {
+      approved: true, review_title: G.title, edits: edits,
+      rejection_reason: '', reviewed_at: new Date().toISOString(),
+    }).then(function() {
+      showDone(true, edits.length);
+    }).catch(function(e) {
+      G.done = false; setBusy(false); alert('Submission failed: ' + e.message);
+    });
+  }
+
+  // ── Reject ────────────────────────────────────────────────────────────────────
+  function startReject()  { if (G.done) return; show('rej-pnl'); hide('act-bar'); nh(); }
+  function cancelReject() { hide('rej-pnl'); show('act-bar'); nh(); }
+  function confirmReject() {
+    if (G.done) return;
+    var reason = (document.getElementById('rej-txt').value || '').trim();
+    G.done = true;
+    var btn = document.getElementById('b-cf');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Rejecting…'; }
+    callTool('submit_reviewed_statement', {
+      approved: false, review_title: G.title, edits: [],
+      rejection_reason: reason, reviewed_at: new Date().toISOString(),
+    }).then(function() {
+      showDone(false, 0, reason);
+    }).catch(function(e) {
+      G.done = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'Confirm Rejection'; }
+      alert('Error: ' + e.message);
+    });
+  }
+
+  // ── Post-submission ───────────────────────────────────────────────────────────
+  function showDone(ok, ec, reason) {
+    hide('act-bar'); hide('rej-pnl');
+    var msg = ok
+      ? '✅ Approved' + (ec ? ' — ' + ec + ' edit' + (ec > 1 ? 's' : '') + ' submitted' : ' — no changes')
+      : '❌ Rejected' + (reason ? ': ' + reason : '');
+    var d = document.createElement('div');
+    d.className = 'sub-bar ' + (ok ? 'sub-ok' : 'sub-no');
+    d.textContent = msg;
+    document.getElementById('root').appendChild(d);
+    nh();
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function setBusy(on) {
+    var ba = document.getElementById('b-ok'), br = document.getElementById('b-rej');
+    if (!ba) return;
+    if (on)  { ba.disabled = true;  ba.innerHTML  = '<span class="spin"></span>Submitting…'; }
+    else     { ba.disabled = false; ba.textContent = 'Approve'; }
+    if (br)  br.disabled = on;
+  }
+
+  function show(id) { var e = document.getElementById(id); if (e) e.classList.remove('off'); }
+  function hide(id) { var e = document.getElementById(id); if (e) e.classList.add('off');    }
+
+  // Format number with commas; negatives in accounting parentheses
+  function fn(n) {
+    if (n === null || n === undefined) return '—';
+    var abs = Math.abs(n);
+    var s = Number.isInteger(n)
+      ? abs.toLocaleString('en-US')
+      : abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n < 0 ? '(' + s + ')' : s;
+  }
+
+  var _stmtLabels = { balance_sheet: 'Balance Sheet', income_statement: 'Income Statement', cash_flow: 'Cash Flow' };
+  function stmtLabel(s) {
+    return (s.metadata && s.metadata.statement_title) || _stmtLabels[s.statement_type] || s.statement_type || 'Statement';
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Message bus (test harness / postMessage fallback) ─────────────────────────
+  window.addEventListener('message', function(e) {
+    if (e.source !== window.parent) return;
+    var m = e.data; if (!m) return;
+    if (m.jsonrpc === '2.0' && m.method === 'ui/notifications/tool-result') {
+      var p = m.params, d = (p && p.structuredContent !== undefined) ? p.structuredContent : p;
+      init(d);
+    }
+    if (m.jsonrpc === '2.0' && m.method === 'ui/notifications/theme-change') { applyTheme(m.params.theme); }
+    if (m.jsonrpc === '2.0' && m.id && _calls[m.id]) {
+      var cb = _calls[m.id]; delete _calls[m.id];
+      if (m.result) cb.res(m.result); else cb.rej(new Error(m.error || 'failed'));
+    }
+  }, { passive: true });
+
+  // ── window.openai polling (M365 / ChatGPT) ────────────────────────────────────
+  var _rendered = false;
+  function tryRenderFromOpenAI() {
+    if (_rendered) return;
+    if (window.openai) {
+      if (window.openai.theme)      { applyTheme(window.openai.theme); }
+      if (window.openai.toolOutput) {
+        var o = window.openai.toolOutput;
+        init((o && o.structuredContent !== undefined) ? o.structuredContent : o);
+        _rendered = true;
+      }
+    }
+  }
+
+  tryRenderFromOpenAI();
+  if (!_rendered) {
+    var _attempts = 0;
+    var _poll = setInterval(function() {
+      _attempts++;
+      tryRenderFromOpenAI();
+      if (_rendered || _attempts >= 30) { clearInterval(_poll); }
+    }, 100);
+  }
+</script>
+</body>
+</html>

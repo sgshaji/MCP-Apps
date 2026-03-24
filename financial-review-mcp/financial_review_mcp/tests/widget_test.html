@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Financial Review Widget — Local Test Harness</title>
+<style>
+  body       { font-family: system-ui, sans-serif; background: #f0f0f0; padding: 24px; }
+  h2         { margin-bottom: 4px; }
+  .subtitle  { font-size: 13px; color: #555; margin-bottom: 16px; }
+  .controls  { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  button     { padding: 8px 16px; border: none; border-radius: 6px; background: #0066cc; color: white; cursor: pointer; font-size: 13px; }
+  button:hover { background: #0052a3; }
+  button.dark  { background: #333; }
+  button.dark:hover { background: #111; }
+  button.secondary { background: #888; }
+  button.secondary:hover { background: #666; }
+  .hint      { font-size: 12px; color: #666; margin-bottom: 16px; }
+  .log       { font-size: 11px; color: #444; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; margin-top: 12px; max-height: 140px; overflow-y: auto; font-family: monospace; }
+  .frame-wrap { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 16px; max-width: 900px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  iframe     { width: 100%; border: none; min-height: 80px; display: block; }
+</style>
+</head>
+<body>
+
+<h2>Financial Review Widget — Local Test Harness</h2>
+<p class="subtitle">Simulates M365 Copilot postMessage delivery. No server or tunnel required.</p>
+
+<div class="controls">
+  <button onclick="sendAll3()">Send All 3 Statements (Balance Sheet + P&amp;L + Cash Flow)</button>
+  <button class="secondary" onclick="sendBalanceSheetOnly()">Balance Sheet Only</button>
+  <button class="secondary" onclick="sendCashFlowOnly()">Cash Flow Only (has warnings)</button>
+  <button class="dark" onclick="toggleTheme()">Toggle Dark / Light</button>
+</div>
+<p class="hint">
+  Editable cells: line-item rows only. Warnings ⚠ appear on Cash Flow subtotals.
+  Click Approve or Reject to test the callTool response path (mocked below).
+</p>
+
+<div class="frame-wrap">
+  <iframe id="widget" src="../web/widget.html"></iframe>
+</div>
+
+<div class="log" id="log">— event log —</div>
+
+<script>
+  var isDark = false;
+
+  // ── Mock: Balance Sheet ────────────────────────────────────────────────────
+  var BALANCE_SHEET = {
+    "statement_type": "balance_sheet",
+    "status": "extracted",
+    "columns": [
+      { "label": "December 31, 2025", "period_type": "annual", "year": 2025 },
+      { "label": "December 31, 2024", "period_type": "annual", "year": 2024 }
+    ],
+    "rows": [
+      { "label": "Assets",                "canonical_key": "assets",                "row_type": "section_header", "indent_level": 0, "values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Current assets:",       "canonical_key": "current_assets",        "row_type": "section_header", "indent_level": 0, "values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Cash and cash equivalents",              "canonical_key": "cash_and_cash_equivalents",              "row_type": "line_item", "indent_level": 1, "values": [{"raw":"35,873","normalized":35873.0,"is_null":false},{"raw":"43,889","normalized":43889.0,"is_null":false}] },
+      { "label": "Marketable securities",                  "canonical_key": "marketable_securities",                  "row_type": "line_item", "indent_level": 1, "values": [{"raw":"45,719","normalized":45719.0,"is_null":false},{"raw":"33,926","normalized":33926.0,"is_null":false}] },
+      { "label": "Accounts receivable, net",               "canonical_key": "accounts_receivable_net",               "row_type": "line_item", "indent_level": 1, "values": [{"raw":"19,769","normalized":19769.0,"is_null":false},{"raw":"16,994","normalized":16994.0,"is_null":false}] },
+      { "label": "Prepaid expenses and other current assets","canonical_key": "prepaid_expenses_and_other_current_assets","row_type": "line_item","indent_level": 1,"values": [{"raw":"7,361","normalized":7361.0,"is_null":false},{"raw":"5,236","normalized":5236.0,"is_null":false}] },
+      { "label": "Total current assets",  "canonical_key": "total_current_assets",  "row_type": "subtotal", "indent_level": 0, "values": [{"raw":"108,722","normalized":108722.0,"is_null":false},{"raw":"100,045","normalized":100045.0,"is_null":false}] },
+      { "label": "Non-marketable equity investments",      "canonical_key": "non_marketable_equity_investments",      "row_type": "line_item", "indent_level": 0, "values": [{"raw":"27,524","normalized":27524.0,"is_null":false},{"raw":"6,070","normalized":6070.0,"is_null":false}] },
+      { "label": "Property and equipment, net",            "canonical_key": "property_and_equipment_net",            "row_type": "line_item", "indent_level": 0, "values": [{"raw":"176,400","normalized":176400.0,"is_null":false},{"raw":"121,346","normalized":121346.0,"is_null":false}] },
+      { "label": "Operating lease right-of-use assets",    "canonical_key": "operating_lease_right_of_use_assets",   "row_type": "line_item", "indent_level": 0, "values": [{"raw":"20,404","normalized":20404.0,"is_null":false},{"raw":"14,922","normalized":14922.0,"is_null":false}] },
+      { "label": "Goodwill",              "canonical_key": "goodwill",              "row_type": "line_item", "indent_level": 0, "values": [{"raw":"24,534","normalized":24534.0,"is_null":false},{"raw":"20,654","normalized":20654.0,"is_null":false}] },
+      { "label": "Other assets",          "canonical_key": "other_assets",          "row_type": "line_item", "indent_level": 0, "values": [{"raw":"8,437","normalized":8437.0,"is_null":false},{"raw":"13,017","normalized":13017.0,"is_null":false}] },
+      { "label": "Total assets",          "canonical_key": "total_assets",          "row_type": "total",    "indent_level": 0, "values": [{"raw":"366,021","normalized":366021.0,"is_null":false},{"raw":"276,054","normalized":276054.0,"is_null":false}] },
+      { "label": "Liabilities and stockholders' equity",   "canonical_key": "liabilities_and_stockholders_equity",   "row_type": "section_header", "indent_level": 0, "values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Current liabilities:",  "canonical_key": "current_liabilities",   "row_type": "section_header", "indent_level": 0, "values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Accounts payable",      "canonical_key": "accounts_payable",      "row_type": "line_item", "indent_level": 1, "values": [{"raw":"8,894","normalized":8894.0,"is_null":false},{"raw":"7,687","normalized":7687.0,"is_null":false}] },
+      { "label": "Operating lease liabilities, current",   "canonical_key": "operating_lease_liabilities_current",  "row_type": "line_item", "indent_level": 1, "values": [{"raw":"2,213","normalized":2213.0,"is_null":false},{"raw":"1,942","normalized":1942.0,"is_null":false}] },
+      { "label": "Accrued expenses and other current liabilities","canonical_key": "accrued_expenses_and_other_current_liabilities","row_type": "line_item","indent_level": 1,"values": [{"raw":"30,729","normalized":30729.0,"is_null":false},{"raw":"23,967","normalized":23967.0,"is_null":false}] },
+      { "label": "Total current liabilities","canonical_key": "total_current_liabilities","row_type": "subtotal","indent_level": 0,"values": [{"raw":"41,836","normalized":41836.0,"is_null":false},{"raw":"33,596","normalized":33596.0,"is_null":false}] },
+      { "label": "Operating lease liabilities, non-current","canonical_key": "operating_lease_liabilities_non_current","row_type": "line_item","indent_level": 0,"values": [{"raw":"22,940","normalized":22940.0,"is_null":false},{"raw":"18,292","normalized":18292.0,"is_null":false}] },
+      { "label": "Long-term debt",        "canonical_key": "long_term_debt",        "row_type": "line_item", "indent_level": 0, "values": [{"raw":"58,744","normalized":58744.0,"is_null":false},{"raw":"28,826","normalized":28826.0,"is_null":false}] },
+      { "label": "Long-term income taxes","canonical_key": "long_term_income_taxes","row_type": "line_item", "indent_level": 0, "values": [{"raw":"21,005","normalized":21005.0,"is_null":false},{"raw":"9,987","normalized":9987.0,"is_null":false}] },
+      { "label": "Other liabilities",     "canonical_key": "other_liabilities",     "row_type": "line_item", "indent_level": 0, "values": [{"raw":"4,253","normalized":4253.0,"is_null":false},{"raw":"2,716","normalized":2716.0,"is_null":false}] },
+      { "label": "Total liabilities",     "canonical_key": "total_liabilities",     "row_type": "subtotal", "indent_level": 0, "values": [{"raw":"148,778","normalized":148778.0,"is_null":false},{"raw":"93,417","normalized":93417.0,"is_null":false}] },
+      { "label": "Stockholders' equity:", "canonical_key": "stockholders_equity",   "row_type": "section_header", "indent_level": 0, "values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Common stock and additional paid-in capital","canonical_key": "common_stock_and_additional_paid_in_capital","row_type": "line_item","indent_level": 1,"values": [{"raw":"95,793","normalized":95793.0,"is_null":false},{"raw":"83,228","normalized":83228.0,"is_null":false}] },
+      { "label": "Accumulated other comprehensive income (loss)","canonical_key": "accumulated_other_comprehensive_income_loss","row_type": "line_item","indent_level": 1,"values": [{"raw":"271","normalized":271.0,"is_null":false},{"raw":"(3,097)","normalized":-3097.0,"is_null":false}] },
+      { "label": "Retained earnings",     "canonical_key": "retained_earnings",     "row_type": "line_item", "indent_level": 1, "values": [{"raw":"121,179","normalized":121179.0,"is_null":false},{"raw":"102,506","normalized":102506.0,"is_null":false}] },
+      { "label": "Total stockholders' equity","canonical_key": "total_stockholders_equity","row_type": "subtotal","indent_level": 0,"values": [{"raw":"217,243","normalized":217243.0,"is_null":false},{"raw":"182,637","normalized":182637.0,"is_null":false}] },
+      { "label": "Total liabilities and stockholders' equity","canonical_key": "total_liabilities_and_stockholders_equity","row_type": "total","indent_level": 0,"values": [{"raw":"366,021","normalized":366021.0,"is_null":false},{"raw":"276,054","normalized":276054.0,"is_null":false}] }
+    ],
+    "metadata": { "company_name": "META PLATFORMS, INC.", "statement_title": "Balance Sheet", "currency": "USD", "unit": "millions" },
+    "validation_warnings": []
+  };
+
+  // ── Mock: Income Statement ─────────────────────────────────────────────────
+  var INCOME_STATEMENT = {
+    "statement_type": "income_statement",
+    "status": "extracted",
+    "columns": [
+      { "label": "Q4 2025", "period_type": "quarterly", "year": 2025 },
+      { "label": "Q4 2024", "period_type": "quarterly", "year": 2024 },
+      { "label": "FY 2025", "period_type": "annual",    "year": 2025 },
+      { "label": "FY 2024", "period_type": "annual",    "year": 2024 }
+    ],
+    "rows": [
+      { "label": "Revenue",              "canonical_key": "revenue",              "row_type": "line_item",  "indent_level": 0, "values": [{"raw":"59,893","normalized":59893.0,"is_null":false},{"raw":"48,385","normalized":48385.0,"is_null":false},{"raw":"200,966","normalized":200966.0,"is_null":false},{"raw":"164,501","normalized":164501.0,"is_null":false}] },
+      { "label": "Costs and expenses:",  "canonical_key": "costs_and_expenses",   "row_type": "section_header", "indent_level": 0, "values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Cost of revenue",      "canonical_key": "cost_of_revenue",      "row_type": "line_item",  "indent_level": 1, "values": [{"raw":"10,905","normalized":10905.0,"is_null":false},{"raw":"8,839","normalized":8839.0,"is_null":false},{"raw":"36,175","normalized":36175.0,"is_null":false},{"raw":"30,161","normalized":30161.0,"is_null":false}] },
+      { "label": "Research and development","canonical_key": "research_and_development","row_type": "line_item","indent_level": 1,"values": [{"raw":"17,136","normalized":17136.0,"is_null":false},{"raw":"12,180","normalized":12180.0,"is_null":false},{"raw":"57,372","normalized":57372.0,"is_null":false},{"raw":"43,873","normalized":43873.0,"is_null":false}] },
+      { "label": "Marketing and sales",  "canonical_key": "marketing_and_sales",  "row_type": "line_item",  "indent_level": 1, "values": [{"raw":"3,410","normalized":3410.0,"is_null":false},{"raw":"3,240","normalized":3240.0,"is_null":false},{"raw":"11,991","normalized":11991.0,"is_null":false},{"raw":"11,347","normalized":11347.0,"is_null":false}] },
+      { "label": "General and administrative","canonical_key": "general_and_administrative","row_type": "line_item","indent_level": 1,"values": [{"raw":"3,697","normalized":3697.0,"is_null":false},{"raw":"761","normalized":761.0,"is_null":false},{"raw":"12,152","normalized":12152.0,"is_null":false},{"raw":"9,740","normalized":9740.0,"is_null":false}] },
+      { "label": "Total costs and expenses","canonical_key": "total_costs_and_expenses","row_type": "subtotal","indent_level": 0,"values": [{"raw":"35,148","normalized":35148.0,"is_null":false},{"raw":"25,020","normalized":25020.0,"is_null":false},{"raw":"117,690","normalized":117690.0,"is_null":false},{"raw":"95,121","normalized":95121.0,"is_null":false}] },
+      { "label": "Income from operations","canonical_key": "income_from_operations","row_type": "line_item", "indent_level": 0, "values": [{"raw":"24,745","normalized":24745.0,"is_null":false},{"raw":"23,365","normalized":23365.0,"is_null":false},{"raw":"83,276","normalized":83276.0,"is_null":false},{"raw":"69,380","normalized":69380.0,"is_null":false}] },
+      { "label": "Interest and other income, net","canonical_key": "interest_and_other_income_net","row_type": "line_item","indent_level": 0,"values": [{"raw":"609","normalized":609.0,"is_null":false},{"raw":"188","normalized":188.0,"is_null":false},{"raw":"2,656","normalized":2656.0,"is_null":false},{"raw":"1,283","normalized":1283.0,"is_null":false}] },
+      { "label": "Income before provision for income taxes","canonical_key": "income_before_provision_for_income_taxes","row_type": "line_item","indent_level": 0,"values": [{"raw":"25,354","normalized":25354.0,"is_null":false},{"raw":"23,553","normalized":23553.0,"is_null":false},{"raw":"85,932","normalized":85932.0,"is_null":false},{"raw":"70,663","normalized":70663.0,"is_null":false}] },
+      { "label": "Provision for income taxes","canonical_key": "provision_for_income_taxes","row_type": "line_item","indent_level": 0,"values": [{"raw":"2,586","normalized":2586.0,"is_null":false},{"raw":"2,715","normalized":2715.0,"is_null":false},{"raw":"25,474","normalized":25474.0,"is_null":false},{"raw":"8,303","normalized":8303.0,"is_null":false}] },
+      { "label": "Net income",           "canonical_key": "net_income",           "row_type": "total",      "indent_level": 0, "values": [{"raw":"22,768","normalized":22768.0,"is_null":false},{"raw":"20,838","normalized":20838.0,"is_null":false},{"raw":"60,458","normalized":60458.0,"is_null":false},{"raw":"62,360","normalized":62360.0,"is_null":false}] },
+      { "label": "Earnings per share:",  "canonical_key": "earnings_per_share",   "row_type": "section_header","indent_level": 0,"values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Basic",                "canonical_key": "eps_basic",            "row_type": "line_item",  "indent_level": 1, "values": [{"raw":"9.02","normalized":9.02,"is_null":false},{"raw":"8.24","normalized":8.24,"is_null":false},{"raw":"23.98","normalized":23.98,"is_null":false},{"raw":"24.61","normalized":24.61,"is_null":false}] },
+      { "label": "Diluted",              "canonical_key": "eps_diluted",          "row_type": "line_item",  "indent_level": 1, "values": [{"raw":"8.88","normalized":8.88,"is_null":false},{"raw":"8.02","normalized":8.02,"is_null":false},{"raw":"23.49","normalized":23.49,"is_null":false},{"raw":"23.86","normalized":23.86,"is_null":false}] }
+    ],
+    "metadata": { "company_name": "META PLATFORMS, INC.", "statement_title": "Income Statement", "currency": "USD", "unit": "millions (except EPS)" },
+    "validation_warnings": []
+  };
+
+  // ── Mock: Cash Flow (with validation warnings) ─────────────────────────────
+  var CASH_FLOW = {
+    "statement_type": "cash_flow",
+    "status": "extracted",
+    "columns": [
+      { "label": "Q4 2025",  "period_type": "quarterly", "year": 2025 },
+      { "label": "Q4 2024",  "period_type": "quarterly", "year": 2024 },
+      { "label": "FY 2025",  "period_type": "annual",    "year": 2025 }
+    ],
+    "rows": [
+      { "label": "Cash flows from operating activities", "canonical_key": "cash_flows_from_operating_activities", "row_type": "section_header", "indent_level": 0, "values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Net income",                           "canonical_key": "net_income",                           "row_type": "line_item",      "indent_level": 1, "values": [{"raw":"22,768","normalized":22768.0,"is_null":false},{"raw":"20,838","normalized":20838.0,"is_null":false},{"raw":"60,458","normalized":60458.0,"is_null":false}] },
+      { "label": "Adjustments to reconcile net income:", "canonical_key": "adjustments",                          "row_type": "section_header",  "indent_level": 1, "values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Depreciation and amortization",        "canonical_key": "depreciation_and_amortization",        "row_type": "line_item",      "indent_level": 2, "values": [{"raw":"5,411","normalized":5411.0,"is_null":false},{"raw":"4,460","normalized":4460.0,"is_null":false},{"raw":"18,616","normalized":18616.0,"is_null":false}] },
+      { "label": "Share-based compensation",             "canonical_key": "share_based_compensation",             "row_type": "line_item",      "indent_level": 2, "values": [{"raw":"5,890","normalized":5890.0,"is_null":false},{"raw":"4,262","normalized":4262.0,"is_null":false},{"raw":"20,427","normalized":20427.0,"is_null":false}] },
+      { "label": "Deferred income taxes",                "canonical_key": "deferred_income_taxes",                "row_type": "line_item",      "indent_level": 2, "values": [{"raw":"1,033","normalized":1033.0,"is_null":false},{"raw":"(1,332)","normalized":-1332.0,"is_null":false},{"raw":"18,738","normalized":18738.0,"is_null":false}] },
+      { "label": "Unrealized (gain) loss on equity investments","canonical_key": "unrealized_gain_loss_on_equity_investments","row_type": "line_item","indent_level": 2,"values": [{"raw":"(496)","normalized":-496.0,"is_null":false},{"raw":"2","normalized":2.0,"is_null":false},{"raw":"(1,138)","normalized":-1138.0,"is_null":false}] },
+      { "label": "Changes in accounts receivable",       "canonical_key": "accounts_receivable",                  "row_type": "line_item",      "indent_level": 2, "values": [{"raw":"(2,475)","normalized":-2475.0,"is_null":false},{"raw":"(2,978)","normalized":-2978.0,"is_null":false},{"raw":"(1,815)","normalized":-1815.0,"is_null":false}] },
+      { "label": "Changes in accounts payable",          "canonical_key": "accounts_payable_change",              "row_type": "line_item",      "indent_level": 2, "values": [{"raw":"623","normalized":623.0,"is_null":false},{"raw":"568","normalized":568.0,"is_null":false},{"raw":"(14)","normalized":-14.0,"is_null":false}] },
+      { "label": "Changes in accrued expenses",          "canonical_key": "accrued_expenses_change",              "row_type": "line_item",      "indent_level": 2, "values": [{"raw":"3,960","normalized":3960.0,"is_null":false},{"raw":"1,523","normalized":1523.0,"is_null":false},{"raw":"1,077","normalized":1077.0,"is_null":false}] },
+      { "label": "Net cash provided by operating activities","canonical_key": "net_cash_provided_by_operating_activities","row_type": "subtotal","indent_level": 0,"values": [{"raw":"36,214","normalized":36214.0,"is_null":false},{"raw":"27,988","normalized":27988.0,"is_null":false},{"raw":"115,800","normalized":115800.0,"is_null":false}] },
+      { "label": "Cash flows from investing activities", "canonical_key": "cash_flows_from_investing_activities", "row_type": "section_header", "indent_level": 0, "values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Purchases of property and equipment",  "canonical_key": "purchases_of_property_and_equipment",  "row_type": "line_item",      "indent_level": 1, "values": [{"raw":"(21,383)","normalized":-21383.0,"is_null":false},{"raw":"(14,425)","normalized":-14425.0,"is_null":false},{"raw":"(69,691)","normalized":-69691.0,"is_null":false}] },
+      { "label": "Purchases of marketable securities",   "canonical_key": "purchases_of_marketable_securities",   "row_type": "line_item",      "indent_level": 1, "values": [{"raw":"(14,580)","normalized":-14580.0,"is_null":false},{"raw":"(10,898)","normalized":-10898.0,"is_null":false},{"raw":"(36,929)","normalized":-36929.0,"is_null":false}] },
+      { "label": "Sales and maturities of marketable securities","canonical_key": "sales_and_maturities_of_marketable_securities","row_type": "line_item","indent_level": 1,"values": [{"raw":"3,113","normalized":3113.0,"is_null":false},{"raw":"3,817","normalized":3817.0,"is_null":false},{"raw":"26,874","normalized":26874.0,"is_null":false}] },
+      { "label": "Acquisitions of businesses",           "canonical_key": "acquisitions_of_businesses",           "row_type": "line_item",      "indent_level": 1, "values": [{"raw":"(3,415)","normalized":-3415.0,"is_null":false},{"raw":"(9)","normalized":-9.0,"is_null":false},{"raw":"(4,231)","normalized":-4231.0,"is_null":false}] },
+      { "label": "Net cash used in investing activities","canonical_key": "net_cash_used_in_investing_activities", "row_type": "subtotal",       "indent_level": 0, "values": [{"raw":"(34,187)","normalized":-34187.0,"is_null":false},{"raw":"(21,498)","normalized":-21498.0,"is_null":false},{"raw":"(102,003)","normalized":-102003.0,"is_null":false}] },
+      { "label": "Cash flows from financing activities", "canonical_key": "cash_flows_from_financing_activities", "row_type": "section_header", "indent_level": 0, "values": [{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Taxes paid — net share settlement",    "canonical_key": "taxes_paid_share_settlement",          "row_type": "line_item",      "indent_level": 1, "values": [{"raw":"(4,272)","normalized":-4272.0,"is_null":false},{"raw":"(3,857)","normalized":-3857.0,"is_null":false},{"raw":"(18,400)","normalized":-18400.0,"is_null":false}] },
+      { "label": "Repurchases of Class A common stock",  "canonical_key": "repurchases_of_class_a_common_stock",  "row_type": "line_item",      "indent_level": 1, "values": [{"raw":"(26,248)","normalized":-26248.0,"is_null":false},{"raw":"(30,125)","normalized":-30125.0,"is_null":false},{"raw":null,"normalized":null,"is_null":true}] },
+      { "label": "Dividends and equivalents",            "canonical_key": "payments_for_dividends",               "row_type": "line_item",      "indent_level": 1, "values": [{"raw":"(1,338)","normalized":-1338.0,"is_null":false},{"raw":"(1,269)","normalized":-1269.0,"is_null":false},{"raw":"(5,324)","normalized":-5324.0,"is_null":false}] },
+      { "label": "Proceeds from issuance of long-term debt, net","canonical_key": "proceeds_from_issuance_of_long_term_debt_net","row_type": "line_item","indent_level": 1,"values": [{"raw":"29,906","normalized":29906.0,"is_null":false},{"raw":"29,906","normalized":29906.0,"is_null":false},{"raw":"10,432","normalized":10432.0,"is_null":false}] },
+      { "label": "Net cash used in financing activities","canonical_key": "net_cash_used_in_financing_activities", "row_type": "subtotal",       "indent_level": 0, "values": [{"raw":"25,149","normalized":25149.0,"is_null":false},{"raw":"(5,465)","normalized":-5465.0,"is_null":false},{"raw":"(20,370)","normalized":-20370.0,"is_null":false}] },
+      { "label": "Net increase in cash and equivalents", "canonical_key": "net_increase_decrease_in_cash",         "row_type": "total",          "indent_level": 0, "values": [{"raw":"27,159","normalized":27159.0,"is_null":false},{"raw":"311","normalized":311.0,"is_null":false},{"raw":"(6,338)","normalized":-6338.0,"is_null":false}] }
+    ],
+    "metadata": { "company_name": "META PLATFORMS, INC.", "statement_title": "Cash Flow Statement", "currency": "USD", "unit": "millions" },
+    "validation_warnings": [
+      { "row": 10, "label": "Net cash provided by operating activities", "col": 1, "expected": 13540.0,  "actual": 36214.0,  "diff": 22674.0 },
+      { "row": 10, "label": "Net cash provided by operating activities", "col": 2, "expected": 7439.0,   "actual": 27988.0,  "diff": 20549.0 },
+      { "row": 10, "label": "Net cash provided by operating activities", "col": 3, "expected": 55342.0,  "actual": 115800.0, "diff": 60458.0 },
+      { "row": 16, "label": "Net cash used in investing activities",      "col": 2, "expected": -39706.0, "actual": -21498.0, "diff": 18208.0 },
+      { "row": 16, "label": "Net cash used in investing activities",      "col": 3, "expected": -83806.0, "actual": -102003.0,"diff": 18197.0 },
+      { "row": 22, "label": "Net cash used in financing activities",      "col": 1, "expected": -1099.0,  "actual": 25149.0,  "diff": 26248.0 },
+      { "row": 22, "label": "Net cash used in financing activities",      "col": 2, "expected": -5684.0,  "actual": -5465.0,  "diff": 219.0   },
+      { "row": 22, "label": "Net cash used in financing activities",      "col": 3, "expected": -13596.0, "actual": -20370.0, "diff": 6774.0  }
+    ]
+  };
+
+  // ── Compose payloads ───────────────────────────────────────────────────────
+  var ALL_3 = {
+    review_title: "META PLATFORMS — Q4 & FY 2025 Financial Review",
+    instructions:  "Review all three statements. Line items are editable. Rows highlighted in amber have validation warnings — hover for details. Edit any values as needed, then Approve or Reject.",
+    statements:    [BALANCE_SHEET, INCOME_STATEMENT, CASH_FLOW],
+    status:        "pending_review"
+  };
+
+  var BS_ONLY = {
+    review_title: "Balance Sheet Review — December 31, 2025",
+    instructions:  "Review the balance sheet. Edit line items as needed, then Approve or Reject.",
+    statements:    [BALANCE_SHEET],
+    status:        "pending_review"
+  };
+
+  var CF_ONLY = {
+    review_title: "Cash Flow Review — Q4 & FY 2025 (Warnings Present)",
+    instructions:  "8 validation warnings detected. Amber rows show discrepancies — hover for expected vs actual. Correct if needed.",
+    statements:    [CASH_FLOW],
+    status:        "pending_review"
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function post(data) { document.getElementById('widget').contentWindow.postMessage(data, '*'); }
+
+  function log(msg) {
+    var el = document.getElementById('log');
+    el.innerHTML += '<br>' + new Date().toLocaleTimeString() + '  ' + msg;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function sendPayload(payload) {
+    post({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { structuredContent: payload } });
+    log('→ Sent: ' + payload.review_title + ' (' + payload.statements.length + ' statement(s))');
+  }
+
+  function sendAll3()            { sendPayload(ALL_3);   }
+  function sendBalanceSheetOnly(){ sendPayload(BS_ONLY); }
+  function sendCashFlowOnly()    { sendPayload(CF_ONLY); }
+
+  function toggleTheme() {
+    isDark = !isDark;
+    document.body.style.background = isDark ? '#1a1a1a' : '#f0f0f0';
+    document.body.style.color      = isDark ? '#f0f0f0' : '#111';
+    post({ jsonrpc: '2.0', method: 'ui/notifications/theme-change', params: { theme: isDark ? 'dark' : 'light' } });
+    log('→ Theme: ' + (isDark ? 'dark' : 'light'));
+  }
+
+  // ── Handle messages FROM the widget ───────────────────────────────────────
+  window.addEventListener('message', function(e) {
+    var msg = e.data; if (!msg) return;
+
+    // callTool: widget is submitting the review result
+    if (msg.jsonrpc === '2.0' && msg.method === 'ui/callTool') {
+      var name = msg.params.name;
+      var args = msg.params.args;
+      log('← callTool: ' + name);
+      if (args.approved !== undefined) {
+        log('  approved=' + args.approved + ', edits=' + (args.edits || []).length +
+            (args.rejection_reason ? ', reason="' + args.rejection_reason + '"' : ''));
+      }
+      // Mock successful acknowledgement
+      setTimeout(function() {
+        post({ jsonrpc: '2.0', id: msg.id, result: { approved: args.approved, acknowledged: true } });
+        log('→ Returned mock ack to widget');
+      }, 400);
+      return;
+    }
+
+    // Iframe height notification
+    if (msg.method === 'ui/notifyIntrinsicHeight') {
+      document.getElementById('widget').style.height = (msg.params.height + 4) + 'px';
+    }
+  });
+
+  // Auto-load on start
+  window.addEventListener('load', function() {
+    setTimeout(function() { sendPayload(ALL_3); }, 300);
+  });
+</script>
+</body>
+</html>
